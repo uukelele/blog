@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {{ super() }}
+
+  {% if page.meta.comments != false %}
+    <h2 id="__comments">{{ lang.t("meta.comments") }}</h2>
+    {% include "comments.html" %}
+  {% endif %}
+{% endblock %}
