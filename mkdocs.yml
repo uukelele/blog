@@ -72,6 +72,8 @@ nav:
     - tiangolo: people/tiangolo.md
   - Rants:
     - Flat-File Databases: rants/flat-file-databases.md
+  - Security:
+    - WoW Data Leak: security/wow-data-leak.md
 
 extra_css:
   - stylesheets/extra.css
