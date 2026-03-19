@@ -68,6 +68,8 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - People:
+    - tiangolo: people/tiangolo.md
   - Rants:
     - Flat-File Databases: rants/flat-file-databases.md
 

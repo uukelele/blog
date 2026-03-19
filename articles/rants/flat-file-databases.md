@@ -51,7 +51,7 @@ A PHP (no hate to PHP by the way, but surely you don't need `index.php` in your 
 
 Anyway, don't mind me, but I'm going to glaze [@tiangolo](https://tiangolo.com) <del>again</del> for the first time.
 
-Did I mention? Tiangolo is my idol. Maybe I'll save that for another article.
+Did I mention? [Tiangolo is my idol](../people/tiangolo.md).
 
 Anyway, he's the creator of FastAPI and **SQLModel**. And in the SQLModel docs, he wrote a 10,000x better tutorial on databases: <https://sqlmodel.tiangolo.com/databases/>
 
