@@ -68,6 +68,8 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Rants:
+    - Flat-File Databases: rants/flat-file-databases.md
 
 extra_css:
   - stylesheets/extra.css
