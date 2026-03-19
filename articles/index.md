@@ -1,2 +1,6 @@
-# blog
-diarium electronicum de uukelele
+---
+hide:
+  - navigation
+---
+
+--8<-- "README.md"
