@@ -66,6 +66,10 @@ markdown_extensions:
   - tables
   - mkdocs-click
 
+plugins:
+  - search
+  - git-revision-date-localized
+
 nav:
   - Home: index.md
   - People:

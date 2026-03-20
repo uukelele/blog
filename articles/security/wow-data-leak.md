@@ -185,3 +185,5 @@ But they still definitely should have put a 401 or 403 there. That is still an i
 ## Conclusion
 
 This bug was a huge privacy issue, but luckily got fixed fast enough due to responsible reporting. I was told it was an 'IDOR', an Insecure Direct Object Reference attack.
+
+Oh, and I didn't get any bounty for it.
