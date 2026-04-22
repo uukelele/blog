@@ -69,6 +69,8 @@ Those two things are **Developer Experience** (DX) and **performance**.
     | [**PostgreSQL**](https://www.postgresql.org) | PostgreSQL is a *relational database*. Which is practically *necessary* for modern apps with complex data structures if you want to keep to best practices. | PostgreSQL is exceptionally fast because it has a lot of scalability, extensibility, is compliant with standards, and is very tunable with a high configurability for performance. |
     | [**nginx**](https://nginx.org) | nginx allows the frontend and backend to be hosted on the same domain, which allows you to use (e.g.) `/_ws` as the backend websocket route for both development (so you don't have to have backend on `localhost:8000` and frontend on `localhost:5173`), and in production (so you don't have to have backend on `api.my-fuse.app` and frontend on `my-fuse.app`). | nginx is known for its high performance, capable of handling more than 10,000 simultaneous connections while maintaining a low memory footprint due to its asynchronous event-driven architecture, allowing it to efficiently manage requests. |
 
+Also, don't worry about scaling horizontally. The FUSE stack sets up Ephaptic to use the Redis docker container. This means that no matter how many workers you have, Redis will make sure that messages are always emitted to the right nodes with the user connected, and things like ratelimiting work across all nodes.
+
 ## Examples
 
 I can show you some cool examples of the FUSE stack, demonstrating how clean the code can get.
@@ -243,6 +245,105 @@ What if a long-running background task finishes and needs to alert the user? RES
     const { started } = await client.start_job("job_123");
     // Using JS object destructuring! and TypeScript will *still* know that `started` is a bool thanks to the power of Ephaptic!
     ```
+
+### 4. Identity Loading & Ratelimiting
+
+How do you know *who* is sending these requests? And how will you impose ratelimits to prevent abuse? Don't worry - again, Ephaptic handles this for you! All you need to define are identity loaders.
+
+??? info "Identity Loading & Ratelimiting"
+
+    ```python title="Backend code"
+    from fastapi import Request
+    import os
+    import jwt
+    from datetime import datetime, timezone, timedelta
+
+    JWT_SECRET = os.getenv('JWT_SECRET')
+
+    def generate_token(user_id):
+        return jwt.encode({
+            'sub': str(user_id),
+            'exp': datetime.now(timezone.utc) + timedelta(weeks=52)
+        }, JWT_SECRET, algorithm='HS256')
+
+    def verify_token(token):
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+            return payload['sub']
+        except: return None
+
+    @ephaptic.identity_loader
+    def load_identity(auth):
+        if not auth: return None
+        token = auth.get('token')
+        return verify_token(token) if token else None
+
+    @ephaptic.http_identity_loader
+    def load_identity_http(request: Request):
+        token = request.headers.get('Authorization') or request.cookies.get('Authorization')
+        return verify_token(token.removeprefix('Bearer ')) if token else None
+
+    from ephaptic.ctx import active_user, is_http, is_rpc
+
+    class Client(BaseModel):
+        user_id: Optional[str] # Can be None if not logged in, because identity loader can return None!
+        am_i_ephaptic_client: bool
+        am_i_http_client: bool # Either one or the other will always be True.
+
+    # Now we can define our special function!
+    @router.get('/whoami', limit='5/h') # This limit is imposed both via WebSocket AND via HTTP using a client's IP address if not logged in, or the client's user ID when logged in!
+    async def whoAmI() -> Client:
+        return Client(
+            user_id = active_user(),
+
+            am_i_ephaptic_client = is_rpc(),
+            am_i_http_client     = is_http(),
+        )
+    ```
+
+    ```typescript title="Frontend with Ephaptic (not logged in)"
+    import { connect } from "@ephaptic/client";
+
+    const client = connect();
+
+    const me = await client.whoAmI();
+
+    console.log(me.user_id);              // null (not logged in)
+    console.log(me.am_i_ephaptic_client); // true
+    console.log(me.am_i_http_client);     // false
+    ```
+
+    ```typescript title="Frontend with Ephaptic (logged in)"
+    import { connect } from "@ephaptic/client";
+
+    const client = connect({ auth: { token: window.localStorage.getItem('token') } });
+
+    const me = await client.whoAmI();
+
+    console.log(me.user_id);              // some string matching the JWT 
+    console.log(me.am_i_ephaptic_client); // true
+    console.log(me.am_i_http_client);     // false
+
+    ```
+
+    ```typescript title="Frontend with REST (logged in)"
+
+    const token = window.localStorage.getItem('token');
+
+    const res = await fetch('/api/whoami', {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    });
+    const me = await res.json();
+
+    // `me` is not type hinted.
+    console.log(me.user_id);              // some string matching the JWT 
+    console.log(me.am_i_ephaptic_client); // false
+    console.log(me.am_i_http_client);     // true
+
+    ```
+
 
 ### The OpenAPI Bonus
 
