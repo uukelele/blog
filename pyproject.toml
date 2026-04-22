@@ -8,3 +8,6 @@ dependencies = [
     "mkdocs-git-revision-date-localized-plugin>=1.5.1",
     "zensical>=0.0.34",
 ]
+
+[tool.setuptools]
+packages = []

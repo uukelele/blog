@@ -1,0 +1,20 @@
+Metadata-Version: 2.4
+Name: blog
+Version: 0.1.0
+Summary: diarium electronicum de uukelele
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: mkdocs-git-revision-date-localized-plugin>=1.5.1
+Requires-Dist: zensical>=0.0.34
+Dynamic: license-file
+
+# uukelele's blog
+
+<a href="https://uukelele.is-a.dev/blog"><kbd title="latin for: uukelele's blog">diarium electronicum de uukelele</kbd></a>
+
+Welcome to <kbd>uukelele</kbd>'s blog.
+
+This blog is a collection of my thoughts on a bunch of stuff. Mostly full-stack web dev and AI. And some rants.
+
+I don't really know what else to write here. Maybe you should check out some articles. Although there are not many. 
