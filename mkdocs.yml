@@ -64,7 +64,6 @@ markdown_extensions:
   - pymdownx.snippets:
       base_path: .
   - tables
-  - mkdocs-click
 
 plugins:
   - search
@@ -78,6 +77,8 @@ nav:
     - Flat-File Databases: rants/flat-file-databases.md
   - Security:
     - WoW Data Leak: security/wow-data-leak.md
+  - Projects:
+    - FUSE Stack: projects/fuse-stack.md
 
 extra_css:
   - stylesheets/extra.css

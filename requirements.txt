@@ -1,5 +1,0 @@
-mkdocs
-mkdocs-material
-mkdocs-click
-pygments
-mkdocs-git-revision-date-localized-plugin
