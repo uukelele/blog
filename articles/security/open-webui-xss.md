@@ -1,5 +1,7 @@
 # Open WebUI XSS
 
+## [16/05/26]
+
 Sooo... I was bored recently. So, like any sane bored person, I built something that any sane person would build. *Right!? 😅*
 
 It's called [**Human Harness**](https://github.com/uukelele/HumanHarness), and it's basically a tool that lets any human pretend to be an LLM and enter the world of an AI agent.
@@ -14,22 +16,31 @@ Anyway, I decided to have a little fun with it, on Open Web UI.
 
 Here it is, wired up to Open Web UI, and me trying to execute tools (Human Harness only supports JSON tool calling right now, not XML!)
 
+### Tooltip Injection
+
 From here, I noticed something.
 
 After a response, it would immediately re-request me with this:
 
-> ### Task:
+> \### Task:
+> 
 > Suggest 3-5 relevant follow-up questions or prompts that the user might naturally ask next in this conversation as a **user**, based on the chat history, to help continue or deepen the discussion.
-> ### Guidelines:
+> 
+> \### Guidelines:
+> 
 > - Write all follow-up questions from the user’s point of view, directed to the assistant.
 > - Make questions concise, clear, and directly related to the discussed topic(s).
 > - Only suggest follow-ups that make sense given the chat content and do not repeat what was already covered.
 > - If the conversation is very short or not specific, suggest more general (but relevant) follow-ups the user might ask.
 > - Use the conversation's primary language; default to English if multilingual.
 > - Response must be a JSON object with a "follow_ups" key containing an array of strings, no extra text or formatting.
-> ### Output:
+> 
+> \### Output:
+> 
 > JSON format: { "follow_ups": ["Question 1?", "Question 2?", "Question 3?"] }
-> ### Chat History:
+> 
+> \### Chat History:
+> 
 > <chat_history>
 > ...
 > </chat_history>
@@ -181,3 +192,105 @@ Yeah so, uh, elsewhere in the `package-lock.json` it'd updated itself to 3.4.0, 
 Now, for real this time, I can't go any further. But this was an incredibly cool learning process, and no doubt real XSS vulnerabilities are found in the same situations as what I'm doing now.
 
 Good luck to anyone else out there hunting!
+
+---
+
+## [17/05/26]
+
+So, I got kinda annoyed that I didn't find anything, so as a last resort I just searched `innerHTML` in the repository's code.
+Really just to try and find any unsafe innerHTML setting which could be manipulated for XSS.
+
+### Mermaid.js CSS Injection
+
+I found [this](https://github.com/open-webui/open-webui/blob/3660bc00fd807deced3400a63bfa6db47811a3bb/src/lib/components/chat/FileNav/FilePreview.svelte#L141) particularly interesting line in `FilePreview.svelte`:
+
+```typescript
+const svg = await renderMermaidDiagram(mermaidInstance, codeEl.textContent ?? '');
+if (svg) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'mermaid-diagram flex justify-center py-2';
+    wrapper.innerHTML = svg;
+    pre.replaceWith(wrapper);
+}
+```
+
+And it looked like `renderMermaidDiagram` was a function in `utils/index.ts` ([here](https://github.com/open-webui/open-webui/blob/3660bc00fd807deced3400a63bfa6db47811a3bb/src/lib/utils/index.ts#L1839)):
+
+```typescript
+export const renderMermaidDiagram = async (
+	mermaid: typeof import('mermaid').default,
+	code: string,
+	renderId?: string
+) => {
+	const id = renderId ?? `mermaid-${uuidv4()}`;
+	try {
+		const parseResult = await mermaid.parse(code, { suppressErrors: false });
+		if (parseResult) {
+			const { svg } = await mermaid.render(id, code);
+			return svg;
+		}
+		return '';
+	} finally {
+		// Mermaid can leave temporary d*/i* wrappers on error paths.
+		cleanupMermaidTempElements(id);
+	}
+};
+```
+
+So, `mermaid.js` was used for rendering mermaid diagrams, and it seems there's no sanitization done on it either.
+
+I looked through [`package-lock.json`](https://github.com/open-webui/open-webui/blob/3660bc00fd807deced3400a63bfa6db47811a3bb/package-lock.json#L10950) and found that the version used was 11.14.0.
+
+This actually has two known CVEs as well: [CVE-2026-21866](https://www.sentinelone.com/vulnerability-database/cve-2026-21866/) and [CVE-2026-32308](https://www.sentinelone.com/vulnerability-database/cve-2026-32308/).
+
+Both of these are basically the same.
+
+Their PoCs are:
+
+```mermaid
+stateDiagram-v2
+    classDef x }*{ background-image: url("http://media.giphy.com/media/SggILpMXO7Xt6/giphy.gif")}
+```
+
+```mermaid
+%%{init: {"fontFamily": "x;a{b} :not(&){background:green !important} c{d}"}}%%
+flowchart LR
+    A --> B
+```
+
+Ok, so these don't render properly on my blog. Probably because the first one has no content, and the second one does, but both are rendered within a sandboxed `<iframe>` by default.
+
+The actual code for the exploits:
+
+````markdown
+
+```mermaid
+stateDiagram-v2
+    classDef x }*{ background-image: url("http://media.giphy.com/media/SggILpMXO7Xt6/giphy.gif")}
+```
+
+```mermaid
+%%{init: {"fontFamily": "x;a{b} :not(&){background:green !important} c{d}"}}%%
+flowchart LR
+    A --> B
+```
+
+````
+
+Let's try them, one by one.
+
+We'll start with the green one (second one).
+
+![alt text](image-8.png)
+
+Well... it makes everything green. What did you expect?
+
+And what about the GIF one?
+
+![alt text](image-9.png)
+
+...damn.
+
+![The GIF used in the exploit.](http://media.giphy.com/media/SggILpMXO7Xt6/giphy.gif)
+
+P.S. [I've reported this to OpenWebUI on GitHub](https://github.com/open-webui/open-webui/security/advisories/GHSA-4j2m-5xvg-w788).
